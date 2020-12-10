@@ -1,0 +1,55 @@
+#!/usr/bin/awk -f
+
+function exists(file) {
+	return ! system("sh -c '[ -f " $2 " ]'")
+}
+
+function c_to_o(file) {
+	t = file; sub(/.c$/, ".o", t); return t
+}
+
+# For easy reading of #include guards
+BEGIN {
+	FS = "\""
+}
+
+# Track each new input file %.c as target %.o
+! inputs[FILENAME] {
+	inputs[FILENAME] = 1
+	t = c_to_o(FILENAME)
+	targets["main"] = targets["main"] t " "
+}
+
+# Catch %.h files and any corresponding %.c files from #include guards
+/^#include "([^"]+).h"/ {
+	targets[t] = targets[t] $2 " "
+	sub(/.h$/, ".c", $2)
+	if (exists($2)) targets[t] = targets[t] $2 " "
+}
+
+# Infer the project's main target from definitions of `main()`
+/(int|void) main\(/ {
+	if (main) {
+		abort = "fatal: found multiple declarations/defintions for `main`"
+		exit
+	}
+
+	main = FILENAME
+	sub(/.c$/, "", main)
+}
+
+END {
+	if (abort) {
+		print "abort:", abort
+		exit
+	}
+
+	print main ": " targets["main"]
+	delete targets["main"]
+	for (t in targets) {
+		if (length(targets[t])) {
+			printf "%s: %s\n", t, targets[t]
+		}
+	}
+	print "clean:\n\trm *.o " main
+}
