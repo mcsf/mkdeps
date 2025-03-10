@@ -44,12 +44,12 @@ END {
 		exit
 	}
 
-	print main ": " targets["main"]
+	if (! objs_only) print main ": " targets["main"]
 	delete targets["main"]
 	for (t in targets) {
 		if (length(targets[t])) {
 			printf "%s: %s\n", t, targets[t]
 		}
 	}
-	print "clean:\n\trm *.o " main
+	if (! objs_only) print "clean:\n\trm *.o " main
 }
